@@ -1,238 +1,3 @@
-// Init canvas
-canvas = document.getElementById('game');
-ctx = canvas.getContext('2d');
-
-document.addEventListener('keydown', keyPush)
-setInterval(game, 1000/60)
-
-const blockSize = 27; // Количество блоков на поле
-
-// Рисуем поле
-function drawBoard() {
-	// Рисуем фон
-	ctx.fillStyle = 'black';
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-	// Выводим текст
-	ctx.fillStyle = 'white';
-	ctx.font = '20px Comic Sans MS';
-	ctx.textBaseline = 'top';
-	ctx.fillText(`Поколение: ${pop.gen}`, blockSize, blockSize);
-}
-
-// Key test
-function keyPush(event) {
-	switch (event.keyCode) {
-		case 37: case 65: pop.snakes[0].setDirection('Left'); break;
-		case 38: case 87: pop.snakes[0].setDirection('Up'); break;
-		case 39: case 68: pop.snakes[0].setDirection('Right'); break;
-		case 40: case 83: pop.snakes[0].setDirection('Down'); break;
-	}
-}
-
-// Вычисляем случайное гауссовое число
-function randomGaussian(x) {
-    var rand = 0;
-    for(var i = x; i > 0; i--){
-        rand += Math.random() * 2 - 1;
-    }
-    return rand / x;
-}
-
-class Matrix { // Создаем класс матрицы
-
-	constructor(row, col) { // Инициализируем размер матрицы
-		this.rows = row; // Ряд (V)
-		this.cols = col; // Столбик (>)
-
-		this.matrix = Array(this.rows);
-
-		for (let i = 0; i < this.rows; i++) {
-			this.matrix[i] = Array(this.cols)
-		}
-
-		this.randomize(); // Заполняем пустую матрицу значениями от -1 до 1
-	}
-
-	dot(mat) { // Умножение матриц
-		let result = new Matrix(this.rows, mat.cols);
-
-		if (this.rows == mat.rows) {
-			for (let i = 0; i < this.rows; i++) {
-				for (let j = 0; j < this.cols; j++) {
-					let sum = 0;
-					for (let k = 0; k < this.cols; k++) {
-						sum += this.matrix[i][k] * mat.matrix[k][j];
-					}
-					result.matrix[i][j] = sum;
-				}
-			}
-		}
-		return result;
-	}
-
-	randomize() { // Заполнение матрицы случайными значениями от -1 до 1
-		for (let i = 0; i < this.rows; i++) {
-			for (let j = 0; j < this.cols; j++) {
-				this.matrix[i][j] = Math.random() * 2 - 1; // От -1 до 1
-			}
-		}
-	}
-
-	addBias() { // Добаление смещения к определенному слою нейросети
-		let mat = new Matrix(this.rows + 1, 1);
-		
-		for (let i = 0; i < this.rows; i++) {
-			mat.matrix[i][0] = this.matrix[i][0];
-		}
-
-		mat.matrix[this.rows][0] = 1;
-		return mat;
-	}
-
-	activate() { // Преобразуем каждое значение массива через активатор 
-		let mat = new Matrix(this.rows, this.cols);
-
-		for (let i = 0; i < this.rows; i++) {
-			for (let j = 0; j < this.cols; j++) {
-				mat.matrix[i][j] = this.relu(this.matrix[i][j]);
-			}
-		}
-		return mat;
-	}
-
-	relu(x) { // Один из видов активаторов
-		return Math.max(0, x);
-	}
-
-	clone() { // Клонирование матрицы
-		let mat = new Matrix(this.rows, this.cols);
-
-		for (let i = 0; i < this.rows; i++) {
-			for (let j = 0; j < this.cols; j++) {
-				mat.matrix[i][j] = this.matrix[i][j];
-			}
-		}
-		return mat;
-	}
-
-	mutate(mutateRate) { // Мутация нейросети
-		for (let i = 0; i < this.rows; i++) {
-			for (let j = 0; j < this.cols; j++) {
-				let rand = Math.random();
-				if (rand < mutateRate) {
-					this.matrix[i][j] += randomGaussian(5);
-
-					if (this.matrix[i][j] > 1) {
-						this.matrix[i][j] = 1;
-					} else if (this.matrix[i][j] < -1) {
-						this.matrix[i][j] = -1;
-					}
-				}
-			}
-		}
-	}
-
-	crossover(partner) { // Создание нового экземпляра из двух матриц (родителей)
-		let child = new Matrix(this.rows, this.cols);
-
-		let randC = Math.floor(Math.random() * this.cols);
-		let randR = Math.floor(Math.random() * this.rows);
-
-		for (let i = 0; i < this.rows; i++) {
-			for (let j = 0; j < this.cols; j++) {
-				if ((i < randR) || (i == randR && j <= randC)) {
-					child.matrix[i][j] = this.matrix[i][j];
-				} else {
-					child.matrix[i][j] = partner.matrix[i][j];
-				}
-			}
-		}
-		return child;
-	}
-
-	singleColumnMatrixFromArray(arr) { // Преобразуем массив в одномерную матрицу
-		let mat = new Matrix(arr.length, 1);
-
-		for (let i in arr) {
-			mat.matrix[i][0] = arr[i];
-		}
-		return mat
-	}
-
-	toArray() { // Преобразуем матрицу в массив
-		let arr = new Array(this.rows * this.cols);
-
-		for (let i = 0; i < this.rows; i++) {
-			for (let j = 0; j < this.cols; j++) {
-				arr[j + i * this.cols] = this.matrix[i][j];
-			}
-		}
-		return arr;
-	}
-}
-
-class NeuronNet { // Создаем класс нейросети
-	
-	constructor(count_of_inputs, count_of_hidden, count_of_outputs) { // Инициализируем количества нейронов на каждом слою
-		this.iNodes = count_of_inputs; // Количество входных данных
-		this.hNodes = count_of_hidden; // Количество скрытых нейронов
-		this.oNodes = count_of_outputs; // Количество выходных данных
-
-		this.weights = Array(3);
-
-		this.weights[0] = new Matrix(this.hNodes, this.iNodes+1); // Веса между входным и скрытым слоями (I -> H1)
-		this.weights[1] = new Matrix(this.hNodes, this.hNodes+1); // Веса между скрытым и вторым скрытым слоями (H1 -> H2)
-		this.weights[2] = new Matrix(this.oNodes, this.hNodes+1); // Веса между скрытым и выходным слоями (H2 -> O)
-	}
-
-	mutate(mutateRate) { // Создаем мутацию под каждый вес
-		for (let i in this.weights) {
-			this.weights[i].mutate(mutateRate);
-		}
-	}
-
-	output(inputsArr) { // 
-		let inputs = this.weights[2].singleColumnMatrixFromArray(inputsArr);
-
-		let inputsBias = inputs.addBias();
-
-		//////////////////////////////////////////////////
-		
-		let hiddenInputs = this.weights[0].dot(inputsBias);
-
-		let hiddenOutputs = hiddenInputs.activate();
-
-		let hiddenOutputsBias = hiddenOutputs.addBias();
-
-		/////////////////////////////////////////////////
-		
-		let hiddenInputs2 = this.weights[1].dot(hiddenOutputsBias);
-
-		let hiddenOutputs2 = hiddenInputs2.activate();
-
-		let hiddenOutputsBias2 = hiddenOutputs2.addBias();
-
-		//////////////////////////////////////////////////
-
-		let outputInputs = this.weights[2].dot(hiddenOutputsBias2);
-
-		let outputs = outputInputs.activate()
-
-		return outputs.toArray();
-	}
-
-	clone() {
-		let clone = new NeuronNet(this.iNodes, this.hNodes, this.oNodes);
-
-		for (let i = 0; i < this.weights.length; i++) {
-			clone.weights[i] = this.weights[i].clone();
-		}
-		
-		return clone;
-	}
-}
-
 class Block { // Создаем класс клетки
 
 	constructor(x, y) { // Инициализируем координаты клетки на поле
@@ -248,114 +13,135 @@ class Block { // Создаем класс клетки
 	equal(other_x, other_y) { // Сравнение координат с входными
 		return this.x == other_x && this.y == other_y;
 	}
+
+	equalBlock(other) {
+		return this.x == other.x && this.y == other.y;
+	}
+
+	add(other) {
+		this.x += other.x;
+		this.y += other.y;
+	}
 }
 
-class Apple { // Создаем класс яблока (еды)
+class Apple extends Block { // Создаем класс яблока (еды)
 	
 	constructor() { // Инициализируем цвет и кординаты яблока
-		var is_finish = false;
+		var ax, ay;
+		do {
+			ax = Math.floor(Math.random() * blockSize);
+			ay = Math.floor(Math.random() * blockSize);
+		} while(in_array(busyBlocks, ax, ay));
 
-		while (!is_finish) { // Перебираем пока не выпадет яблоко, не находящиеся в позиции другого яблока
-			is_finish = true;
-			var ax = Math.floor(Math.random() * blockSize);
-			var ay = Math.floor(Math.random() * blockSize);
-
-			for (let apple of apples) {
-				if (apple.position.equal(ax, ay) ) {
-					is_finish = false;
-					break;
-				}
-			}
-		}
-
-		this.position = new Block(ax, ay);
-		this.color = 'Red';
+		busyBlocks.push(new Block(ax, ay));
+		super(ax, ay);
 	}
 
-	draw() { // Рисуем яблоко на экране
-		this.position.draw(this.color);
+	move() {
+		updateBusyBlocks();
+		var ax, ay;
+		do {
+			var ax = Math.floor(Math.random() * blockSize);
+			var ay = Math.floor(Math.random() * blockSize);
+		} while (in_array(busyBlocks, ax, ay));
+
+		this.x = ax;
+		this.y = ay;
 	}
 }
 
-class Snake { // Создаем класс Змейки
+class Food {
 
-	constructor(snakes=[]) {
-		var is_finish = false;
+	constructor(count) {
+		this.apples = [];
 
-		while (!is_finish) { // Перебираем пока не выпадет яблоко, не находящиеся в позиции другой змейки
-			is_finish = true
-			var px = Math.floor(Math.random() * (blockSize - 2))
-			var py = Math.floor(Math.random() * (blockSize - 2) + 1)
-
-			for (let snake of snakes) {
-				if (snake.px == px && snake.py == py) {
-					is_finish = false;
-					break;
-				}
-			}
+		for (let i = 0; i < count; i++) {
+			this.apples.push(new Apple());
 		}
+	}
 
-		this.px = px // Координаты змейки по OX
-		this.py = py // Координаты змейки по OY
+	update() {
+		this.apples.forEach((apple) => {
+			apple.draw('Red');
+		})
+	}
+
+	move(pointer) {
+		this.apples[pointer].move();
+	}
+}
+
+class Snake  { // Создаем класс Змейки
+
+	constructor() {
+		var px, py;
+		do {
+			px = Math.floor(Math.random() * (blockSize - 2))
+			py = Math.floor(Math.random() * (blockSize - 2) + 1)
+		} while (in_array(busyBlocks, px, py));
+
+		this.x = px;
+		this.y = py;
+
+		busyBlocks.push(new Block(px, py));
 
 		this.trail = []; // Хвост змеи
 		this.tail = 5; // Размер тела змейки
 
+		this.foodPointer = 0;
+
 		this.score = 1; // Твой счет
 
-		this.lifeLeft = 100; // Показывает, сколько осталось ходов
-		this.lifetime = 0; // Количество времени жизни змейки
-
-		this.fitness = 0; // Результат жизни змейки
-		this.decision = []; // Решение змейки
-		this.brain = new NeuronNet(24, 18, 4);
-
-		this.applePointer = 0; // Указатель на массив с яблоками
+		this.color = "White";
+		
+		this.vision = Array(24); // Вид змейки на 3 клетки в каждую сторону
 
 		this.dead = false; // Проверка на смерть
-		this.best = false; // Проверка на то, будет ли змейка лучшей
-
-		this.color = 'White'; // Инициализируем цвет змейки
 
 		this.direction = 'Right'; // Нынешняя директория
 		this.nextDirection = 'Right'; // Следующая директория
 	}
 
-	move() {
-		// Уменьшаем ходы, добавляем время
-		this.lifeLeft--;
-		this.lifetime++;
+	update() {
+		if (!this.dead) {
+			this.look();
+			this.move();
+		}
+		this.draw();
+	}
 
-		// Производим ход
-		this.direction = this.nextDirection
+	move() {
+		this.direction = this.nextDirection // Производим ход
 
 		// Сделать ход
-		if (this.direction == 'Right') 		{ this.px += 1; } 
-		else if (this.direction == 'Left')  { this.px += -1; }
-		else if (this.direction == 'Down')  { this.py += 1; }
-		else if (this.direction == 'Up')    { this.py += -1; }
+		if (this.direction == 'Right') 		{ this.x += 1; } 
+		else if (this.direction == 'Left')  { this.x += -1; }
+		else if (this.direction == 'Down')  { this.y += 1; }
+		else if (this.direction == 'Up')    { this.y += -1; }
 
-		// Инициализируем голову
-		let head = new Block(this.px, this.py);
+		let head = new Block(this.x, this.y); // Инициализируем голову
+
+		if (this.checkCollision(head)) { // Проверяем на столкновение
+			this.dead = true;
+			return
+		}
 
 		if (this.checkEat(head)) { // Если змейка съела яблоко
 			this.eat(head);
 		}
 
-		// Проверяем на столкновение
-		if (this.checkCollision(head) || this.lifeLeft <= 0) {
-			this.dead = true;
-			this.calculateFitness();
-			return
-		}
+		this.trail.push(head); // Добавляем новую часть тела
 
-		// Добавляем новую часть тела
-		this.trail.push(head);
-
-		// Удаляем ненужные части тела
-		if (this.trail.length > this.tail) {
+		if (this.trail.length > this.tail) { // Удаляем ненужные части тела
 			this.trail.shift();
 		}
+	}
+
+	eat() { // Что происходит при съедении яблока?
+		this.tail++; // Увеличиваем хвост
+		this.score++; // Увеличиваем на одно очко
+
+		food.move(this.foodPointer);
 	}
 
 	draw() { // Рисуем змейку
@@ -368,45 +154,109 @@ class Snake { // Создаем класс Змейки
 		let selfCollision = false;
 
 		this.trail.forEach((item) => {
-			if (item.equal(head.x, head.y)) { // Если голова столкнулась с телом
+			if (item.equalBlock(head)) { // Если голова столкнулась с телом
 				selfCollision = true
 			}
 		})
 
-		return selfCollision || (this.px < 0 || this.px > blockSize - 1 || this.py < 0 || this.py > blockSize - 1)
+		return selfCollision || this.checkBorder(head);
+	}
+
+	checkBorder(head) {
+		return head.x < 0 || head.x > blockSize - 1 || head.y < 0 || head.y > blockSize - 1;
 	}
 
 	checkEat(head) { // Проверка на столкновение с яблоком
-		for (let i = 0; i < apples.length; i++) {
-			if (head.equal(apples[i].position.x, apples[i].position.y)) { // Если голова столкнулось с яблоком
-				this.applePointer = i;
-				return true
+		for (let i = 0; i < food.apples.length; i++) {
+			if (food.apples[i].equalBlock(head)) {
+				this.foodPointer = i;
+				return true;
 			}
 		}
-		return false
+		return false;
 	}
 
-	eat() { // Что происходит при съедении яблока?
-		this.tail++; // Увеличиваем хвост
-		this.score++; // Увеличиваем на одно очко
+	look() { // Сохраняем результаты наблюдения
+		let tempValues = this.lookInDirection(new Block(-1, 0)); // Лево
 
-		if (this.lifeLeft < 500) { // Увеличиваем время жизни змеи
-			if (this.lifeLeft > 400) {
-				this.lifeLeft = 500;
-			} else {
-				this.lifeLeft += 100;
+		this.vision[0] = tempValues[0];
+		this.vision[1] = tempValues[1];
+		this.vision[2] = tempValues[2];
+		
+		tempValues = this.lookInDirection(new Block(-1, -1)); // Лево-Вверх
+
+		this.vision[3] = tempValues[0];
+		this.vision[4] = tempValues[1];
+		this.vision[5] = tempValues[2];
+		
+		tempValues = this.lookInDirection(new Block(0, -1)); // Вверх
+
+		this.vision[6] = tempValues[0];
+		this.vision[7] = tempValues[1];
+		this.vision[8] = tempValues[2];
+		
+		tempValues = this.lookInDirection(new Block(1, -1)); // Право-Вверх
+
+		this.vision[9] = tempValues[0];
+		this.vision[10] = tempValues[1];
+		this.vision[11] = tempValues[2];
+		
+		tempValues = this.lookInDirection(new Block(1, 0)); // Право
+
+		this.vision[12] = tempValues[0];
+		this.vision[13] = tempValues[1];
+		this.vision[14] = tempValues[2];
+		
+		tempValues = this.lookInDirection(new Block(1, 1)); // Право-Вниз
+
+		this.vision[15] = tempValues[0];
+		this.vision[16] = tempValues[1];
+		this.vision[17] = tempValues[2];
+
+		tempValues = this.lookInDirection(new Block(0, 1)); // Вниз
+
+		this.vision[18] = tempValues[0];
+		this.vision[19] = tempValues[1];
+		this.vision[20] = tempValues[2];
+
+		tempValues = this.lookInDirection(new Block(-1, 1)); // Лево-Вниз
+
+		this.vision[21] = tempValues[0];
+		this.vision[22] = tempValues[1];
+		this.vision[23] = tempValues[2];
+	}
+
+	lookInDirection(direction) { // Возвращает массив с результатом о местоположении еды, хвоста и растояния до стенки в определенной директории
+		let visionInDirection = Array(3); // Массив с ответом
+
+		let pos = new Block(this.x, this.y, 'Yellow'); // Позиция блока относительно поля
+
+		let foodIsFound = false; // Была ли задета блоком еда
+		let tailIsFound = false; // Был ли задет блоком хвост
+
+		pos.add(direction); // Добавляем смещение позиции от начальной
+		let distance = 1; // Расстояние от головы змейки
+
+		while (!this.checkBorder(pos)) { // Введем цикл пока не врежимся в стенку
+
+			if (!foodIsFound && pos.equalBlock(food.apples)) { // Если встретили еду
+				visionInDirection[0] = 1; // Сохраняем тот факт, что еда есть в поле зрения
+				foodIsFound = true;
 			}
+			
+			if (!tailIsFound && in_array(this.trail, pos.x, pos.y)) { // Если уткнулись в хвост
+				visionInDirection[1] = 1 / distance; // Сохраняем расстояние до хвоста
+				tailIsFound = true;
+			}
+			// pos.draw();
+
+			pos.add(direction);
+			distance += 1; // Добавляем еще расстояния от начальной позиции
 		}
 
-		apples.splice(this.applePointer, 1); // Удаляем яблоко с поля
-	}
+		visionInDirection[2] = 1 / distance; // Сохраняем растояние до стенки
 
-	calculateFitness() { // Вычисляем коэффицент развития ИИ
-		if (this.score < 10) {
-			this.fitness = Math.floor(this.lifetime * this.lifetime) * Math.pow(2, this.score); // F = life^2 * 2^score
-		} else {
-			this.fitness = Math.floor(this.lifetime * this.lifetime) * Math.pow(2, 10) * (this.score - 9) // F = life^2 * 2^10 * (score-9)
-		}
+		return visionInDirection;
 	}
 
 	setDirection(newDirection) { // Установка новой директории
@@ -421,63 +271,34 @@ class Snake { // Создаем класс Змейки
 			this.nextDirection = newDirection
 		}
 	}
-
-	clone() {
-		let snake = new Snake();
-		snake.brain = this.brain.clone();
-
-		return snake;
-	}
-
-	mutate(mutateRate) {
-		brain.mutate(mutateRate);
-	}
-
-	think() { // Ответ ИИ и его выполнение
-
-		let head = this.trail[this.trail.length-1];
-		let pos = [];
-		let total = 1000;
-		let i = 0;
-
-		apples.forEach((apple) => {
-			pos.push({x: head.x - apple.position.x, y: head.y - apple.position.y});
-		})
-
-		pos.forEach((p, index) => {
-			if (p.x - p.y < total) {
-				total = p.x - p.y;
-				i = index
-			}
-		})
-
-		if (pos[i].x > 0) 	   { this.setDirection('Left'); }
-		else if (pos[i].y > 0) { this.setDirection('Up'); }
-		else if (pos[i].x < 0) { this.setDirection('Right'); }  
-		else if (pos[i].y < 0) { this.setDirection('Down'); }
-	}
 }
 
-class Population { // Создаем класс популяции змеек
-	
+class Snakes {
+
 	constructor(count) {
-		this.snakes = []; // Массив со змейками
+		this.snakes = [];
 
-		for (let n = 0; n < count; n++) { // Создаем n-ое количество змеек
-			let snake = new Snake(this.snakes);
-			this.snakes.push(snake);
+		for (let i = 0; i < count; i++) {
+			this.snakes.push(new Snake());
 		}
-		this.bestSnake = this.snakes[0].clone(); // Лучшая змейка
 
-		this.bestSnakeScore = 0;
-		this.gen = 1;
-		this.samebest = 0;
-
-		this.bestFitness = 0;
-		this.fitnessSum = 0;
+		this.snakeID = 0;
+		this.snakes[0].color = "Yellow";
 	}
 
-	done() {
+	update() {
+		this.snakes.forEach((snake) => {
+			snake.update();
+		})
+	}
+
+	nextUserSnake() {
+		this.snakes[this.snakeID].color = 'White';
+		this.snakeID = (this.snakeID + 1) % this.snakes.length;
+		this.snakes[this.snakeID].color = 'Yellow';
+	}
+
+	dead() {
 		for (let snake of this.snakes) {
 			if (!snake.dead) {
 				return false;
@@ -486,79 +307,122 @@ class Population { // Создаем класс популяции змеек
 		return true;
 	}
 
-	update() {
-		for (let snake of this.snakes) {
-			snake.draw(); // Прорисовываем змейку
-			if (!snake.dead) {
-				snake.move(); // Делаем ход
-				snake.think() // Псевдо ИИ (Максимально тупой алгоритм)
-				console.log(this.done())
-			}
-		}
-	}
-
-	setBestSnake() {
-		let max = 0;
-		let maxIndex = 0;
-
-		for (let i in this.snakes) {
-			if (this.snakes[i].fitness > max) {
-				max = this.snakes[i].fitness;
-				maxIndex = i;
-			}
-		}
-
-		if (max > this.bestFitness) {
-			this.bestFitness = max;
-			this.bestSnake = this.snakes[maxIndex];
-			this.bestSnakeScore = this.snakes[maxIndex].score;
-		}
-	}
-
-	selectParent() {
-		let rand = Math.random() * this.fitnessSum;
-		let summation = 0;
-		for (let snake of this.snakes) {
-			summation += snake.fitness;
-			if (summation > rand) {
-				return snake;
-			}
-		}
-		return this.snakes[0];
-	}
-
-	naturalSelection() {
-		newSnakes = [];
-
-		this.setBestSnake();
-		this.calculateFitnessSum();
-
-		newSnakes[0] = this.bestSnake
-		
-		for (let i = 1; i < snakes.length; i++) {
-			let child = selectParent();
-
-			newSnakes.push(child);
-		}
-
-		this.snakes = newSnakes;
-		this.gen++;
+	get userSnake() {
+		return this.snakes[this.snakeID];
 	}
 }
 
-let apples = []; // Массив с едой
+const size = window.innerHeight > window.innerWidth ? Math.floor(Math.sqrt(window.innerWidth)) : Math.floor(Math.sqrt(window.innerHeight))-1;
+const blockSize = size; // Количество блоков на поле
+let FPS = 15; // FPS
 
-for (i of [...Array(25)]) apples.push(new Apple()) // Создание яблок в массиве
+let busyBlocks = []; // Список с занятыми блоками
 
-let pop = new Population(30); // Инициализируем популяцию змеек
+let snakes, food;
 
-function game() { // Игровой цикл
+let posx, posy;
 
-	drawBoard(); // Рисуем поле
+restart(); // Начинаем игру, ну и перезапускает естественно
 
-	pop.update(); // Перебираем каждую змейку
+// Инициализировать окно
+let canvas = document.getElementById('game'); // Сохраняем игровое поле в переменной
+let ctx = canvas.getContext('2d'); // Создаем переменную для работы с объектами
 
-	apples.forEach((apple)=> {
-		apple.draw()
+canvas.width = canvas.height = blockSize * blockSize;
+
+document.addEventListener('mouseup', screenPush);
+document.addEventListener('mousedown', screenPush);
+document.addEventListener('keydown', keyPush); // Создаем прослушку нажатия кнопок на клавиатуре
+let GameID = setInterval(game, 1000/FPS); // Вызываем игровую функцию с задержкой в 1000/FPS миллисекунд
+
+function game() { // Рисуем игровое поле
+	ctx.fillStyle = 'black';
+	ctx.fillRect(0, 0, canvas.width, canvas.height); // Рисуем фон
+
+	// Выводим текст
+	ctx.fillStyle = 'White';
+	ctx.font = '20px Comic Sans MS';
+	ctx.textBaseline = 'top';
+	ctx.fillText(`Змейка №${snakes.snakeID+1}`, blockSize, blockSize);
+	ctx.fillText(`Счет: ${snakes.userSnake.score}`, blockSize, blockSize * 2);
+
+	ctx.fillText(`Нажмите 'R' для Рестарта`, blockSize * (blockSize-10), blockSize * (blockSize-4) );
+	ctx.fillText(`Нажмите 'Enter' чтобы переключиться`, blockSize * (blockSize-15), blockSize * (blockSize-2) );
+
+	snakes.update(); // Обновляем змейки на экране
+	food.update(); // Обновляем еду на экране
+}
+
+function restart() { // Функция для запуска и перезапуска игры
+	snakes = new Snakes(3); // Инициализируем змеек
+	food = new Food(28); // Инициализируем еду
+}
+
+function in_array(arr, x, y) { // Проверяем наличие блока в других блоках
+	for (let item of arr) {
+		if (item.equal(x, y)) {
+			return true
+		}
+	}
+	return false
+}
+
+function updateBusyBlocks() { // Изменяем список с занятыми блоками
+	busyBlocks = [];
+
+	snakes.snakes.forEach((snake) => {
+		snake.trail.forEach((block) => {
+			busyBlocks.push(new Block(block.x, block.y));
+		})
 	})
+
+	food.apples.forEach((apple) => {
+		busyBlocks.push(new Block(apple.x, apple.y));
+	})
+}
+
+function setDirection(direction) {
+	snakes.userSnake.setDirection(direction);
+}
+
+function screenPush(event) {
+	if (event.buttons) {
+		posx = event.screenX;
+		posy = event.screenY;
+	}
+	else {
+		posx = event.screenX - posx;
+		posy = event.screenY - posy;
+
+		console.log(posx, posy)
+
+		if (Math.abs(posx) > Math.abs(posy)) {
+			if (posx > 0) {
+				setDirection('Right');
+				console.log('Right');
+			} else if (posx < 0) {
+				setDirection('Left')
+				console.log('Left');
+			}
+		} else {
+			if (posy > 0) {
+				setDirection('Down');
+				console.log('Down');
+			} else if (posy < 0) {
+				setDirection('Up');
+				console.log('Up');
+			}
+		}
+	}
+}
+
+function keyPush(event) { // Key test
+	switch (event.keyCode) {
+		case 37: case 65: setDirection('Left'); break; // Влево
+		case 38: case 87: setDirection('Up'); break; // Вверх
+		case 39: case 68: setDirection('Right'); break; // Вправо
+		case 40: case 83: setDirection('Down'); break; // Вниз
+		case 13: snakes.nextUserSnake(); break; // Переключится на другую змейку
+		case 82: restart(); // Рестарт игры
+	}
 }
