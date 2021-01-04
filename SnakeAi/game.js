@@ -345,15 +345,15 @@ function game() { // Рисуем игровое поле
 	ctx.fillRect(0, 0, canvas.width, canvas.height); // Рисуем фон
 
 	ctx.fillStyle = 'White';
-	ctx.font = '20px Comic Sans MS';
+	ctx.font = '20px Helvetica';
 	ctx.textBaseline = 'top';
 	ctx.textAlign = 'start';
 
 	if (snakes.dead) { // Если все змейки проиграли
 		ctx.textAlign = "center";
-		ctx.font = '80px Comic Sans MS';
+		ctx.font = '80px Helvetica';
 		ctx.fillText(`Игра окончена`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 - 2) );
-		ctx.font = '40px Comic Sans MS';
+		ctx.font = '40px Helvetica';
 		if (is_mobile) {
 			ctx.fillText(`Нажмите на экран чтобы продолжить`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 + 2) );
 		} else {
