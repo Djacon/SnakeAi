@@ -314,7 +314,7 @@ class Snakes {
 
 const size = window.innerHeight > window.innerWidth ? Math.floor(Math.sqrt(window.innerWidth)) : Math.floor(Math.sqrt(window.innerHeight))-1;
 const blockSize = size; // Количество блоков на поле
-let FPS = 15; // FPS
+let FPS = 10; // FPS
 
 let busyBlocks = []; // Список с занятыми блоками
 
@@ -330,8 +330,8 @@ let ctx = canvas.getContext('2d'); // Создаем переменную для
 
 canvas.width = canvas.height = blockSize * blockSize;
 
-document.addEventListener('mouseup', screenPush);
-document.addEventListener('mousedown', screenPush);
+document.addEventListener('touchend', screenPush);
+document.addEventListener('touchstart', screenPush);
 document.addEventListener('keydown', keyPush); // Создаем прослушку нажатия кнопок на клавиатуре
 let GameID = setInterval(game, 1000/FPS); // Вызываем игровую функцию с задержкой в 1000/FPS миллисекунд
 
@@ -385,8 +385,9 @@ function setDirection(direction) {
 	snakes.userSnake.setDirection(direction);
 }
 
-function screenPush(event) {
-	if (event.buttons) {
+function screenPush(e) {
+	let event = e.changedTouches[0];
+	if (event.force) {
 		posx = event.screenX;
 		posy = event.screenY;
 	}
@@ -399,18 +400,16 @@ function screenPush(event) {
 		if (Math.abs(posx) > Math.abs(posy)) {
 			if (posx > 0) {
 				setDirection('Right');
-				console.log('Right');
 			} else if (posx < 0) {
 				setDirection('Left')
-				console.log('Left');
 			}
 		} else {
 			if (posy > 0) {
 				setDirection('Down');
-				console.log('Down');
 			} else if (posy < 0) {
 				setDirection('Up');
-				console.log('Up');
+			} else {
+				snakes.nextUserSnake();
 			}
 		}
 	}
