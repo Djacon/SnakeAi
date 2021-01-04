@@ -334,10 +334,6 @@ eatVoice.src = 'Audio/eat.mp3';
 dieVoice.src = 'Audio/die.mp3';
 gameoverVoice.src = 'Audio/gameover.mp3';
 
-// eat.muted = true;
-// die.muted = true;
-// gameover.muted = true;
-
 // Инициализировать окно
 let canvas = document.getElementById('game'); // Сохраняем игровое поле в переменной
 let ctx = canvas.getContext('2d'); // Создаем переменную для работы с объектами
@@ -359,9 +355,9 @@ if (is_mobile) {
 	document.addEventListener('keydown', keyPush); // Создаем прослушку нажатия кнопок на клавиатуре
 }
 
-restart(); // Начинаем игру, ну и перезапускает естественно
+let GameID;
 
-setInterval(game, 1000/FPS); // Вызываем игровую функцию с задержкой в 1000/FPS миллисекунд
+start();
 
 function game() { // Рисуем игровое поле
 	ctx.fillStyle = 'black';
@@ -382,6 +378,7 @@ function game() { // Рисуем игровое поле
 		} else {
 			ctx.fillText(`Нажмите на пробел чтобы продолжить`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 + 2) );
 		}
+		clearInterval(GameID);
 		return
 	}
 
@@ -394,10 +391,30 @@ function game() { // Рисуем игровое поле
 	ctx.fillText(`Счет: ${snakes.userSnake.score}`, blockSizeX, blockSizeY * 3);
 }
 
+function start() {
+	ctx.fillStyle = 'Black';
+	ctx.fillRect(0, 0, canvas.width, canvas.height); // Рисуем фон
+
+	ctx.fillStyle = 'LimeGreen';
+	ctx.textBaseline = 'top';
+	ctx.textAlign = "center";
+	ctx.font = '80px Helvetica';
+
+	ctx.fillText(`Змейка`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 - 2) );
+	ctx.font = '40px Helvetica';
+	if (is_mobile) {
+		ctx.fillText(`Нажмите на экран чтобы начать`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 + 2) );
+	} else {
+		ctx.fillText(`Нажмите на пробел чтобы начать`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 + 2) );
+	}
+}
+
 function restart() { // Функция для запуска и перезапуска игры
 	if (!snakes || snakes.dead) {
 		snakes = new Snakes(3); // Инициализируем змеек
 		food = new Food(28); // Инициализируем еду
+
+		GameID = setInterval(game, 1000/FPS); // Вызываем игровую функцию с задержкой в 1000/FPS миллисекунд
 	}
 }
 
@@ -439,7 +456,7 @@ function screenPush(e) { // Управление змейкой на мобил�
 	}
 	if (e.type == 'touchend') {
 		if (Math.abs(event.screenX - fPosx) <= 10 && Math.abs(event.screenY - fPosy) <= 10) { 
-			if (snakes.dead) {
+			if (!snakes || snakes.dead) {
 				restart();
 			} else {
 				snakes.nextUserSnake();
