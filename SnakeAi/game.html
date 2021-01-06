@@ -8,12 +8,18 @@
 			background-color: black;
 		}
 		#game {
-			position: absolute;
+			max-width: 99%;
+			max-height: 99%;
+			position: fixed;
+
+			top: 0;
+			left: 0;
+			right: 0;
 		}
 	</style>
 </head>
 <body>
-	<canvas id="game"></canvas>
+	<canvas id="game" width="729" height="729"></canvas>
 	<script src="game.js"></script>
 </body>
 </html>

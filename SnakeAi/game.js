@@ -7,7 +7,7 @@ class Block { // Создаем класс клетки
 
 	draw(color) { // Прорисовка блока
 		ctx.fillStyle = color;
-		ctx.fillRect(this.x * size, this.y * size, size-2, size-2); // blockSizeX - 2
+		ctx.fillRect(this.x * blockSizeX, this.y * blockSizeY, blockSizeX, blockSizeY); // blockSizeX - 2
 	}
 
 	equal(other_x, other_y) { // Сравнение координат с входными
@@ -35,11 +35,10 @@ class Apple extends Block { // Создаем класс яблока (еды)
 
 		busyBlocks.push(new Block(ax, ay));
 		super(ax, ay);
-
-		this.dead = false; // Проверяем, стало ли лишним яблоко
 	}
 
-	move() { // Перемещение яблока в другое место
+	move() {
+		updateBusyBlocks();
 		var ax, ay;
 		do {
 			var ax = Math.floor(Math.random() * blockSizeX);
@@ -72,7 +71,7 @@ class Snake  { // Создаем класс Змейки
 
 		this.score = 1; // Твой счет
 
-		this.color = 'White';
+		this.color = "White";
 		
 		this.vision = Array(24); // Вид змейки на 3 клетки в каждую сторону
 
@@ -142,7 +141,7 @@ class Snake  { // Создаем класс Змейки
 
 	checkEat(head) { // Проверка на столкновение с яблоком
 		for (let i = 0; i < food.apples.length; i++) {
-			if (!food.apples[i].dead && food.apples[i].equalBlock(head)) {
+			if (food.apples[i].equalBlock(head)) {
 				this.foodPointer = i;
 				return true;
 			}
@@ -151,20 +150,53 @@ class Snake  { // Создаем класс Змейки
 	}
 
 	look() { // Сохраняем результаты наблюдения
-		let tempValues = Array(8);
+		let tempValues = this.lookInDirection(new Block(-1, 0)); // Лево
 
-		tempValues[0] = this.lookInDirection(new Block(-1, 0)); // Лево
-		tempValues[1] = this.lookInDirection(new Block(-1, -1)); // Лево-Вверх
-		tempValues[2] = this.lookInDirection(new Block(0, -1)); // Вверх
-		tempValues[3] = this.lookInDirection(new Block(1, -1)); // Право-Вверх
-		tempValues[4] = this.lookInDirection(new Block(1, 0)); // Право
-		tempValues[5] = this.lookInDirection(new Block(1, 1)); // Право-Вниз
-		tempValues[6] = this.lookInDirection(new Block(0, 1)); // Вниз
-		tempValues[7] = this.lookInDirection(new Block(-1, 1)); // Лево-Вниз
+		this.vision[0] = tempValues[0];
+		this.vision[1] = tempValues[1];
+		this.vision[2] = tempValues[2];
+		
+		tempValues = this.lookInDirection(new Block(-1, -1)); // Лево-Вверх
 
-		for (let i = 0; i < 24; i++){
-			this.vision[i] = tempValues[i/3-i%3][i%3];
-		}
+		this.vision[3] = tempValues[0];
+		this.vision[4] = tempValues[1];
+		this.vision[5] = tempValues[2];
+		
+		tempValues = this.lookInDirection(new Block(0, -1)); // Вверх
+
+		this.vision[6] = tempValues[0];
+		this.vision[7] = tempValues[1];
+		this.vision[8] = tempValues[2];
+		
+		tempValues = this.lookInDirection(new Block(1, -1)); // Право-Вверх
+
+		this.vision[9] = tempValues[0];
+		this.vision[10] = tempValues[1];
+		this.vision[11] = tempValues[2];
+		
+		tempValues = this.lookInDirection(new Block(1, 0)); // Право
+
+		this.vision[12] = tempValues[0];
+		this.vision[13] = tempValues[1];
+		this.vision[14] = tempValues[2];
+		
+		tempValues = this.lookInDirection(new Block(1, 1)); // Право-Вниз
+
+		this.vision[15] = tempValues[0];
+		this.vision[16] = tempValues[1];
+		this.vision[17] = tempValues[2];
+
+		tempValues = this.lookInDirection(new Block(0, 1)); // Вниз
+
+		this.vision[18] = tempValues[0];
+		this.vision[19] = tempValues[1];
+		this.vision[20] = tempValues[2];
+
+		tempValues = this.lookInDirection(new Block(-1, 1)); // Лево-Вниз
+
+		this.vision[21] = tempValues[0];
+		this.vision[22] = tempValues[1];
+		this.vision[23] = tempValues[2];
 	}
 
 	lookInDirection(direction) { // Возвращает массив с результатом о местоположении еды, хвоста и растояния до стенки в определенной директории
@@ -217,58 +249,47 @@ class Snake  { // Создаем класс Змейки
 class Food {
 
 	constructor(count) {
-		this.apples = Array(count); // Массив с яблоками
+		this.apples = [];
+
+		for (let i = 0; i < count; i++) {
+			this.apples.push(new Apple());
+		}
 	}
 
 	update() {
 		this.apples.forEach((apple) => {
-			if (!apple.dead) {
-				apple.draw('Red');
-			}
+			apple.draw('Red');
 		})
 	}
 
-	rebuilt() {
-		for (let i = 0; i < this.apples.length; i++) {
-			this.apples[i] = new Apple();
-		}
-	}
-
 	move(pointer) {
-		updateBusyBlocks(); // Обновляем занятые книги
-		if (busyBlocks.length < blockSizeX * blockSizeY) {
-			this.apples[pointer].move();
-		} else {
-			this.apples[pointer].dead = true;
-		}
+		this.apples[pointer].move();
 	}
 }
 
 class Snakes {
 
 	constructor(count) {
-		this.snakes = Array(count);
+		this.snakes = [];
+
+		for (let i = 0; i < count; i++) {
+			this.snakes.push(new Snake());
+		}
+
+		this.snakeID = 0;
+		this.snakes[0].color = "Yellow";
 	}
 
 	update() {
 		this.snakes.forEach((snake, i) => {
 			if (!snake.dead) {
-				// snake.look(); // Он пока не нужен)
+				snake.look();
 				snake.move();
 				snake.draw();
 			} else if (this.snakeID == i) {
 				this.nextUserSnake();
 			}
 		})
-	}
-
-	rebuilt() {
-		for (let i = 0; i < this.snakes.length; i++) {
-			this.snakes[i] = new Snake();
-		}
-
-		this.snakeID = 0;
-		this.snakes[0].color = 'Yellow';
 	}
 
 	nextUserSnake() {
@@ -297,21 +318,67 @@ class Snakes {
 	}
 }
 
+const blockSizeX = Math.floor(Math.sqrt(window.innerWidth));
+const blockSizeY = Math.floor(Math.sqrt(window.innerHeight)); // Количество блоков на поле
+let FPS = 10; // FPS
+
+let busyBlocks = []; // Список с занятыми блоками
+
+let snakes, food; // Инициализируем змеек и еду
+
+let eatVoice = new Audio();
+let dieVoice = new Audio();
+let gameoverVoice = new Audio();
+
+eatVoice.src = 'Audio/eat.mp3';
+dieVoice.src = 'Audio/die.mp3';
+gameoverVoice.src = 'Audio/gameover.mp3';
+
+// Инициализировать окно
+let canvas = document.getElementById('game'); // Сохраняем игровое поле в переменной
+let ctx = canvas.getContext('2d'); // Создаем переменную для работы с объектами
+
+// Ставим размер холста относительно окна
+canvas.width = blockSizeX * blockSizeX;
+canvas.height = blockSizeY * blockSizeY;
+
+let is_mobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile/i.test(navigator.userAgent); // Проверяем является ли это устройство мобильным
+
+if (is_mobile) {
+	let posx, posy; // Инициализируем координаты мышки на экране
+	let fPosx, fPosy; // Инициализируем координаты мышки для того, чтобы понять сделал ли пользователь клик
+
+	document.addEventListener('touchmove', screenPush); // Следим за зажатым пальцем
+	document.addEventListener('touchend', screenPush); // Следим за разжатым пальцем
+	document.addEventListener('touchstart', screenPush); // Следим за перемещение пальца
+} else {
+	document.addEventListener('keydown', keyPush); // Создаем прослушку нажатия кнопок на клавиатуре
+}
+
+let GameID;
+
+start();
+
 function game() { // Рисуем игровое поле
-	ctx.fillStyle = 'Black';
+	ctx.fillStyle = 'black';
 	ctx.fillRect(0, 0, canvas.width, canvas.height); // Рисуем фон
 
 	ctx.fillStyle = 'White';
 	ctx.font = '50px Helvetica';
 	ctx.textBaseline = 'top';
-	ctx.textAlign = 'left';
-
-	if (screenSize != window.innerWidth) {
-		setScreenSize()
-	}
+	ctx.textAlign = 'start';
 
 	if (snakes.dead) { // Если все змейки проиграли
-		gameover();
+		ctx.textAlign = "center";
+		ctx.font = '80px Helvetica';
+		ctx.fillText(`Игра окончена`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 - 2) );
+		ctx.font = '40px Helvetica';
+		if (is_mobile) {
+			ctx.fillText(`Нажмите на экран чтобы продолжить`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 + 2) );
+		} else {
+			ctx.fillText(`Нажмите на пробел чтобы продолжить`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 + 2) );
+		}
+		clearInterval(GameID);
 		return
 	}
 
@@ -320,68 +387,35 @@ function game() { // Рисуем игровое поле
 
 	// Выводим текст
 	ctx.fillStyle = 'White';
-	ctx.fillText(`Змейка №${snakes.snakeID+1}`, blockSizeX, blockSizeY / 2);
-	ctx.fillText(`Счет: ${snakes.userSnake.score}`, blockSizeX, blockSizeY / 2 + 60);
+	ctx.fillText(`Змейка №${snakes.snakeID+1}`, blockSizeX, blockSizeY);
+	ctx.fillText(`Счет: ${snakes.userSnake.score}`, blockSizeX, blockSizeY * 3);
 }
 
-function gameover() { // Конец игры
-	isEnd = true;
-	ctx.font = '80px Helvetica';
-	ctx.textBaseline = 'middle';
-	ctx.textAlign = 'center';
-
-	ctx.fillText('Игра окончена', canvas.width / 2, canvas.height / 2 - 50 );
-	ctx.font = '40px Helvetica';
-
-	if (snakes.userSnake.score > globalBestScore) {
-		globalBestScore = snakes.userSnake.score;
-
-		ctx.fillStyle = 'Yellow';
-		ctx.fillText(`НОВЫЙ РЕКОРД! Ваш счет: ${snakes.userSnake.score} Лучший счет: ${globalBestScore}`, canvas.width / 2, canvas.height / 2 + 40 );
-	} else {
-		ctx.fillText(`Ваш счет: ${snakes.userSnake.score} Лучший счет: ${globalBestScore}`, canvas.width / 2, canvas.height / 2 + 40 );
-	}
-
-	ctx.fillStyle = 'White';
-	if (is_mobile) {
-		ctx.fillText('Нажмите на экран чтобы продолжить', canvas.width / 2, canvas.height / 2 + 90 );
-	} else {
-		ctx.fillText('Нажмите на пробел чтобы продолжить', canvas.width / 2, canvas.height / 2 + 90 );
-	}
-	clearInterval(GameID);
-}
-
-function start() { // Начало игры
+function start() {
 	ctx.fillStyle = 'Black';
 	ctx.fillRect(0, 0, canvas.width, canvas.height); // Рисуем фон
 
 	ctx.fillStyle = 'LimeGreen';
-	ctx.textBaseline = 'middle';
-	ctx.textAlign = 'center';
+	ctx.textBaseline = 'top';
+	ctx.textAlign = "center";
 	ctx.font = '80px Helvetica';
 
-	ctx.fillText(`Змейка`, canvas.width / 2, window.innerHeight / 2 - 50 );
+	ctx.fillText(`Змейка`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 - 2) );
 	ctx.font = '40px Helvetica';
 	if (is_mobile) {
-		ctx.fillText(`Нажмите на экран чтобы начать`, canvas.width / 2, canvas.height / 2 + 50 );
+		ctx.fillText(`Нажмите на экран чтобы начать`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 + 2) );
 	} else {
-		ctx.fillText(`Нажмите на пробел чтобы начать`, canvas.width / 2, canvas.height / 2 + 50 );
+		ctx.fillText(`Нажмите на пробел чтобы начать`, blockSizeX * blockSizeX / 2, blockSizeY * (blockSizeY / 2 + 2) );
 	}
 }
 
 function restart() { // Функция для запуска и перезапуска игры
-	if (isEnd) {
-		isEnd = false;
-
-		snakes.rebuilt(); // Инициализируем змеек
-		food.rebuilt(); // Инициализируем еду
+	if (!snakes || snakes.dead) {
+		snakes = new Snakes(3); // Инициализируем змеек
+		food = new Food(28); // Инициализируем еду
 
 		GameID = setInterval(game, 1000/FPS); // Вызываем игровую функцию с задержкой в 1000/FPS миллисекунд
 	}
-}
-
-function init() {
-
 }
 
 function in_array(arr, x, y) { // Проверяем наличие блока в других блоках
@@ -397,37 +431,18 @@ function updateBusyBlocks() { // Изменяем список с занятым
 	busyBlocks = [];
 
 	snakes.snakes.forEach((snake) => { // Перебираем каждый блок каждой змейки
-		if (!snake.dead) {
-			snake.trail.forEach((block) => {
-				busyBlocks.push(new Block(block.x, block.y));
-			})
-		}
+		snake.trail.forEach((block) => {
+			busyBlocks.push(new Block(block.x, block.y));
+		})
 	})
 
 	food.apples.forEach((apple) => { // Перебираем каждое яблочко
-		if (!apple.dead) {
-			busyBlocks.push(new Block(apple.x, apple.y));
-		}
+		busyBlocks.push(new Block(apple.x, apple.y));
 	})
 }
 
 function setDirection(direction) { // Установка директории управляемой змейки
-	if (!isEnd) {
-		snakes.userSnake.setDirection(direction);
-	}
-}
-
-function setScreenSize() { // Установить игровой размер
-	screenSize = window.innerWidth;
-
-	blockSizeX = Math.floor(window.innerWidth / size);
-	blockSizeY = Math.floor(window.innerHeight / size); // Количество блоков на поле
-
-	// Ставим размер холста относительно окна
-	canvas.width  = blockSizeX * size;
-	canvas.height = blockSizeY * size;
-	canvas.style.setProperty('left', (window.innerWidth - canvas.width)/2 + 'px');
-	canvas.style.setProperty('top', (window.innerHeight - canvas.height)/2 + 'px');
+	snakes.userSnake.setDirection(direction);
 }
 
 function screenPush(e) { // Управление змейкой на мобильном устройстве
@@ -441,7 +456,7 @@ function screenPush(e) { // Управление змейкой на мобил�
 	}
 	if (e.type == 'touchend') {
 		if (Math.abs(event.screenX - fPosx) <= 10 && Math.abs(event.screenY - fPosy) <= 10) { 
-			if (isEnd) {
+			if (!snakes || snakes.dead) {
 				restart();
 			} else {
 				snakes.nextUserSnake();
@@ -481,45 +496,3 @@ function keyPush(event) { // Управление змейкой на пк
 		case 32: restart(); break; // Рестарт игры
 	}
 }
-
-const size = 40; // Размер блока
-let blockSizeX, blockSizeY; // Количество блоков в ширину и в высоту
-
-let screenSize;
-let globalBestScore = 0;
-let FPS = 10; // FPS
-
-let busyBlocks = []; // Список с занятыми блоками
-let isEnd = true;
-
-let eatVoice = new Audio();
-let dieVoice = new Audio();
-let gameoverVoice = new Audio();
-
-eatVoice.src = 'Audio/eat.mp3';
-dieVoice.src = 'Audio/die.mp3';
-gameoverVoice.src = 'Audio/gameover.mp3';
-
-// Инициализировать окно
-let canvas = document.getElementById('game'); // Сохраняем игровое поле в переменной
-let ctx = canvas.getContext('2d'); // Создаем переменную для работы с объектами
-
-let is_mobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile/i.test(navigator.userAgent); // Проверяем является ли это устройство мобильным
-let GameID;
-
-setScreenSize(); // Устанавливаем размер поля под размер экрана
-start(); // Стартовое меню
-
-if (is_mobile) {
-	let posx, posy; // Инициализируем координаты мышки на экране
-	let fPosx, fPosy; // Инициализируем координаты мышки для того, чтобы понять сделал ли пользователь клик
-
-	document.addEventListener('touchmove', screenPush); // Следим за зажатым пальцем
-	document.addEventListener('touchend', screenPush); // Следим за разжатым пальцем
-	document.addEventListener('touchstart', screenPush); // Следим за перемещение пальца
-} else {
-	document.addEventListener('keydown', keyPush); // Создаем прослушку нажатия кнопок на клавиатуре
-}
-
-let snakes = new Snakes(3);
-let food = new Food(28); // Инициализируем змеек и еду
