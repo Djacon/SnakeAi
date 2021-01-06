@@ -306,10 +306,6 @@ function game() { // Рисуем игровое поле
 	ctx.textBaseline = 'top';
 	ctx.textAlign = 'left';
 
-	if (screenSize != window.innerWidth) {
-		setScreenSize()
-	}
-
 	if (snakes.dead) { // Если все змейки проиграли
 		gameover();
 		return
@@ -380,10 +376,6 @@ function restart() { // Функция для запуска и перезапу
 	}
 }
 
-function init() {
-
-}
-
 function in_array(arr, x, y) { // Проверяем наличие блока в других блоках
 	for (let item of arr) {
 		if (item.equal(x, y)) {
@@ -418,8 +410,6 @@ function setDirection(direction) { // Установка директории у
 }
 
 function setScreenSize() { // Установить игровой размер
-	screenSize = window.innerWidth;
-
 	blockSizeX = Math.floor(window.innerWidth / size);
 	blockSizeY = Math.floor(window.innerHeight / size); // Количество блоков на поле
 
@@ -485,7 +475,6 @@ function keyPush(event) { // Управление змейкой на пк
 const size = 40; // Размер блока
 let blockSizeX, blockSizeY; // Количество блоков в ширину и в высоту
 
-let screenSize;
 let globalBestScore = 0;
 let FPS = 10; // FPS
 
@@ -517,6 +506,7 @@ if (is_mobile) {
 	document.addEventListener('touchmove', screenPush); // Следим за зажатым пальцем
 	document.addEventListener('touchend', screenPush); // Следим за разжатым пальцем
 	document.addEventListener('touchstart', screenPush); // Следим за перемещение пальца
+	window.addEventListener('resize', setScreenSize); // Отслеживание переворот экрана
 } else {
 	document.addEventListener('keydown', keyPush); // Создаем прослушку нажатия кнопок на клавиатуре
 }
